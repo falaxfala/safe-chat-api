@@ -1,0 +1,71 @@
+swagger: "2.0"
+info:
+  description: "Dokumentacja systemu"
+  version: "1.0.0"
+  title: "Elektroteka"
+  termsOfService: ""
+  contact:
+    email: "falaxfala@gmail.com"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "localhost:5000"
+basePath: "/"
+tags:
+  - name: "Użytkownik"
+    description: "Zarządzanie użytkownikami"
+  - name: "Firma"
+    description: "Zarządzanie opcjami firm"
+schemes:
+  - "https"
+  - "http"
+paths:
+  /user/register:
+    post:
+      tags:
+        - "Użytkownik"
+      summary: "Dodaje nowego użytkownika i wysyła link aktywacyjny via e-mail"
+      description: ""
+      operationId: "addUser"
+      consumes:
+        - "application/json"
+        - "application/xml"
+      produces:
+        - "application/xml"
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "Obiekt użytkownika do wstępnej rejestracji"
+          required: true
+          schema:
+            $ref: "#/definitions/User"
+      responses:
+        "400":
+          description: "Niepomyślna walidacja"
+        "409":
+          description: "Istnieje użytkownik z podanym adresem email"
+        "201":
+          description: "Pomyślnie utworzono użytkownika"
+definitions:
+  User:
+    type: "object"
+    properties:
+      username:
+        type: "string"
+        description: "Imię użytkownika"
+      surname:
+        type: "string"
+        description: "Nazwisko"
+      email:
+        type: "string"
+        description: "Adres e-mail"
+      password:
+        type: "string"
+        description: "Hasło"
+      rPassword:
+        type: "string"
+        description: "Potwórzone hasło"
+    xml:
+      name: "User"
+
