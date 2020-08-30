@@ -6,11 +6,14 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     OneToMany,
-    ManyToOne
+    ManyToOne,
+    ManyToMany,
+    JoinTable
 } from "typeorm";
 import { Length, IsNotEmpty, IsEmail } from "class-validator";
 import * as bcrypt from "bcryptjs";
 import { ExpiredAccessToken } from "./ExpiredAccessToken";
+import { type } from "os";
 
 @Entity()
 @Unique(["email"])
@@ -54,6 +57,10 @@ export class User {
 
     @OneToMany(type => ExpiredAccessToken, expiredToken => expiredToken.user)
     expiredTokens: ExpiredAccessToken[];
+
+    @ManyToMany(type => User, user => user.friends)
+    @JoinTable()
+    friends: User[];
 
     hashPassword() {
         this.password = bcrypt.hashSync(this.password, 8);

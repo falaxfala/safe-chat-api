@@ -35,6 +35,6 @@ router.delete(
   UserController.deleteUser
 );
 
-router.post('/test', [checkJwt], UserController.test);
+router.get('/friends/:id([0-9]+)', [checkJwt], UserController.getFriends);
 
 export default router;

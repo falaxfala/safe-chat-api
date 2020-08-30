@@ -47,7 +47,7 @@ class UserController {
             user.password = password;
             user.surname = surname;
             user.email = email;
-            user.role = 'COMPANY_OWNER';
+            user.role = 'USER';
         } else {
             const error = [{
                 constraints: {
@@ -214,9 +214,41 @@ class UserController {
         res.status(204).send();
     };
 
+    static getFriends = async (req: Request, res: Response) => {
+        const id = req.params.id;
+
+        const userRepository = getRepository(User);
+
+        let friends;
+        try {
+            friends = await userRepository.createQueryBuilder("user")
+                .leftJoinAndSelect("user.friends", "friends")
+                .where("user.id = :id", { id: id })
+                .getMany();
+        } catch (error) {
+            res.status(404).send();
+            return;
+        }
+        let result = [];
+
+        friends.forEach(packet => {
+            packet.friends.forEach(friend => {
+                const { id, username, surname, role } = friend;
+                result.push({
+                    id,
+                    username,
+                    surname,
+                    role
+                });
+            });
+        });
+
+        res.json(result);
+    };
+
     static test = async (req: Request, res: Response) => {
-        const {val} = req.body;
-        res.status(201).send('testuję sobie '+ val);
+        const { val } = req.body;
+        res.status(201).send('testuję sobie ' + val);
     };
 };
 
