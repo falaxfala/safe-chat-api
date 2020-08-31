@@ -37,4 +37,6 @@ router.delete(
 
 router.get('/friends/:id([0-9]+)', [checkJwt], UserController.getFriends);
 
+router.post('/search', [checkJwt], UserController.search);
+
 export default router;

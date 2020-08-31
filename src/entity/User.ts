@@ -48,6 +48,9 @@ export class User {
     activationCode: string;
 
     @Column()
+    publicProfile: boolean;
+
+    @Column()
     @CreateDateColumn()
     createdAt: Date;
 

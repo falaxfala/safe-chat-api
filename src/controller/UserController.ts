@@ -48,6 +48,7 @@ class UserController {
             user.surname = surname;
             user.email = email;
             user.role = 'USER';
+            user.publicProfile = true;
         } else {
             const error = [{
                 constraints: {
@@ -244,6 +245,26 @@ class UserController {
         });
 
         res.json(result);
+    };
+
+    static search = async (req: Request, res: Response) => {
+        const word = req.body.search;
+
+        const userRepository = getRepository(User);
+        let users;
+        try {
+            users = await userRepository.createQueryBuilder("user")
+                .select(["user.username", "user.surname", "user.id"])
+                .where("user.username like :word", { word: '%' + word + '%' })
+                .orWhere("user.surname like :word", { word: '%' + word + '%' })
+                .getMany();
+        } catch (error) {
+            res.status(404).send(error);
+            return;
+        }
+
+
+        res.json(users);
     };
 
     static test = async (req: Request, res: Response) => {
