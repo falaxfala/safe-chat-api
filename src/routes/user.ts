@@ -11,7 +11,7 @@ router.get("/", [checkJwt, checkRole(["ADMIN"])], UserController.listAll);
 // Get one user
 router.get(
   "/:id([0-9]+)",
-  [checkJwt, checkRole(["ADMIN"])],
+  [checkJwt],
   UserController.getOneById
 );
 

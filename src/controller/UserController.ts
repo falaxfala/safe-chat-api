@@ -28,13 +28,21 @@ class UserController {
 
         //Get the user from database
         const userRepository = getRepository(User);
+        let user;
         try {
-            const user = await userRepository.findOneOrFail(id, {
-                select: ["id", "username", "surname", "email", "role"] //We dont want to send the password on response
+            user = await userRepository.findOneOrFail(id, {
+                select: ["id", "username", "surname", "email", "role", "createdAt"] //We dont want to send the password on response
             });
-        } catch (error) {
-            res.status(404).send("User not found");
+        } catch (e) {
+            const error = [{
+                constraints: {
+                    isUserFound: "Wystąpił błąd. Nie znaleziono użytkownika."
+                }
+            }];
+            res.status(404).send(error);
+            return;
         }
+        res.json(user);
     };
 
     static register = async (req: Request, res: Response) => {
@@ -265,6 +273,10 @@ class UserController {
 
 
         res.json(users);
+    };
+
+    static saveFriendsRequest = async (req: Request, res: Response) => {
+        
     };
 
     static test = async (req: Request, res: Response) => {
