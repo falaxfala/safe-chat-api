@@ -2,6 +2,7 @@ import { Router } from "express";
 import UserController from "../controller/UserController";
 import { checkJwt } from "../middlewares/checkJwt";
 import { checkRole } from "../middlewares/checkRole";
+import { User } from "../entity/User";
 
 const router = Router();
 
@@ -38,5 +39,7 @@ router.delete(
 router.get('/friends/:id([0-9]+)', [checkJwt], UserController.getFriends);
 
 router.post('/search', [checkJwt], UserController.search);
+
+router.post('/saveFriendsRequest', [checkJwt], UserController.saveFriendsRequest);
 
 export default router;

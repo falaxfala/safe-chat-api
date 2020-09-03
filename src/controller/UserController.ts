@@ -5,6 +5,7 @@ import { validate } from "class-validator";
 import { User } from "../entity/User";
 import config from '../config/config';
 import * as jwt from 'jsonwebtoken';
+import FriendsRequest from "../entity/FriendRequest";
 
 const nodemailer = require('nodemailer');
 
@@ -276,7 +277,29 @@ class UserController {
     };
 
     static saveFriendsRequest = async (req: Request, res: Response) => {
-        
+        const userId = res.locals.jwtPayload.id;
+        const targetId = req.body.id;
+        let newRequest: FriendsRequest = new FriendsRequest();
+
+        newRequest.message = "Testowanie zaproszeń";
+        newRequest.requestUserId = userId;
+        newRequest.targetUserId = targetId;
+        newRequest.status = true;
+
+        const requestRepository = getRepository(FriendsRequest);
+        try {
+            requestRepository.save(newRequest);
+        } catch (err) {
+            const error = [{
+                constraints: {
+                    cannotSendRequest: "Nie udało się wysłać zaproszenia "
+                }
+            }];
+            res.status(409).send(error);
+            return;
+        }
+
+        res.status(201).send();
     };
 
     static test = async (req: Request, res: Response) => {
