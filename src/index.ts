@@ -13,6 +13,7 @@ import * as socket_io from 'socket.io';
 import * as socketJwt from 'socketio-jwt';
 import config from "./config/config";
 import FriendsRequest from "./entity/FriendRequest";
+import { User } from './entity/User';
 
 let swaggerSpec: Object;
 try {
@@ -41,19 +42,52 @@ createConnection()
       secret: config.jwtSecret,
       callback: false
     })).on('authenticated', socket => {
-      setInterval(() => {
+      let notificationsInterval = setInterval(function () {
+
         const requestsRepository = getRepository(FriendsRequest);
-        requestsRepository.findAndCount({ select: ["id", "createdAt", "status", "requestUserId"], where: { targetUserId: socket.decoded_token.id, status: true } })
+        requestsRepository.findAndCount({ select: ["id", "requestUserId", "createdAt", "message", "status"], where: { targetUserId: socket.decoded_token.id, status: true, sendRequest: false } })
           .then(([friendsRequest, count]) => {
-            console.log("sprawdzam, sprawdzam. Spokojnie..." + count);
+            console.log("sprawdzam, sprawdzam. Spokojnie..." + count+", dla użytkownika "+socket.decoded_token.username);
             if (count > 0) {
-              socket.emit('newNotification', { title: 'Nowe zaproszenie do znajomych', data: friendsRequest });
+
+              let result = [];
+              friendsRequest.forEach(reqData => {
+                const userRepository = getRepository(User);
+                userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUserId } })
+                  .then(user => {
+                    result.push({
+                      requestId: reqData.id,
+                      createdAt: reqData.createdAt,
+                      message: reqData.message,
+                      status: reqData.status,
+                      requestUserData: {
+                        username: user.username,
+                        surname: user.surname,
+                        avatar: user.avatar
+                      }
+                    });
+                  })
+                  .then(() => {
+                    socket.emit('newNotification', result);
+                  })
+              });
+
+              friendsRequest.forEach(request => {
+                request.sendRequest = true;
+                requestsRepository.update(request.id, request);
+              });
             }
           })
           .catch(e => {
             socket.emit('newNotification', { title: 'Wystąpił błąd' + e });
           });
       }, 3000);
+
+      socket.on('disconnect', () => {
+        console.log('Rozłączono');
+        clearInterval(notificationsInterval);
+      });
+
     });
 
     app.locals.io = io;

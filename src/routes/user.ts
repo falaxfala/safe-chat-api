@@ -42,4 +42,6 @@ router.post('/search', [checkJwt], UserController.search);
 
 router.post('/saveFriendsRequest', [checkJwt], UserController.saveFriendsRequest);
 
+router.get('/notifications', [checkJwt], UserController.getRequests);
+
 export default router;

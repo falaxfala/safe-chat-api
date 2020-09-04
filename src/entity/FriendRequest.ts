@@ -28,6 +28,9 @@ class FriendsRequest {
     status: boolean;
 
     @Column()
+    sendRequest: boolean;
+
+    @Column()
     @CreateDateColumn()
     createdAt: Date;
 

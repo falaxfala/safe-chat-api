@@ -49,6 +49,9 @@ export class User {
     @Column()
     publicProfile: boolean;
 
+    @Column({ type: "blob" })
+    avatar: string;
+
     @Column()
     @CreateDateColumn()
     createdAt: Date;

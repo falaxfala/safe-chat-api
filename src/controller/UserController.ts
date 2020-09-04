@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response, request } from "express";
 import { getRepository } from "typeorm";
 import { validate } from "class-validator";
 
@@ -285,6 +285,7 @@ class UserController {
         newRequest.requestUserId = userId;
         newRequest.targetUserId = targetId;
         newRequest.status = true;
+        newRequest.sendRequest = false;
 
         const requestRepository = getRepository(FriendsRequest);
         try {
@@ -300,6 +301,56 @@ class UserController {
         }
 
         res.status(201).send();
+    };
+
+
+    static getRequests = async (req: Request, res: Response) => {
+        const userId: number = res.locals.jwtPayload.id;
+
+        const requestRepository = getRepository(FriendsRequest);
+        requestRepository.find({ select: ["id", "requestUserId", "createdAt", "message", "status"], where: { targetUserId: userId } })
+            .then(friendRequest => {
+                let result = [];
+                friendRequest.forEach(reqData => {
+                    const userRepository = getRepository(User);
+                    userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUserId } })
+                        .then(user => {
+                            result.push({
+                                requestId: reqData.id,
+                                createdAt: reqData.createdAt,
+                                message: reqData.message,
+                                status: reqData.status,
+                                requestUserData: {
+                                    username: user.username,
+                                    surname: user.surname,
+                                    avatar: user.avatar
+                                }
+                            });
+                        })
+                        .then(() => {
+                            res.status(200).send(result);
+                            return;
+                        })
+                        .catch(err => {
+                            const error = [{
+                                constraints: {
+                                    cannotLoadRequest: "Nie udało się wczytać powiadomień (dane użytkownika)"
+                                }
+                            }];
+                            res.status(409).send(error);
+                            return;
+                        });
+                });
+            })
+            .catch(err => {
+                const error = [{
+                    constraints: {
+                        cannotLoadRequest: "Nie udało się wczytać powiadomień (powiadomienie)"
+                    }
+                }];
+                res.status(409).send(error);
+                return;
+            });
     };
 
     static test = async (req: Request, res: Response) => {
