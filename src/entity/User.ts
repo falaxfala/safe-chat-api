@@ -7,7 +7,8 @@ import {
     UpdateDateColumn,
     OneToMany,
     ManyToMany,
-    JoinTable
+    JoinTable,
+    AfterLoad
 } from "typeorm";
 import { Length, IsNotEmpty, IsEmail } from "class-validator";
 import * as bcrypt from "bcryptjs";
@@ -66,6 +67,13 @@ export class User {
     @ManyToMany(type => User, user => user.friends)
     @JoinTable()
     friends: User[];
+
+    @AfterLoad()
+    async nullChecks() {
+        if (!this.friends) {
+            this.friends = [];
+        }
+    }
 
     hashPassword() {
         this.password = bcrypt.hashSync(this.password, 8);

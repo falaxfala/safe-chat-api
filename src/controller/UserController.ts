@@ -308,40 +308,9 @@ class UserController {
         const userId: number = res.locals.jwtPayload.id;
 
         const requestRepository = getRepository(FriendsRequest);
-        requestRepository.find({ select: ["id", "requestUserId", "createdAt", "message", "status"], where: { targetUserId: userId } })
-            .then(friendRequest => {
-                let result = [];
-                friendRequest.forEach(reqData => {
-                    const userRepository = getRepository(User);
-                    userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUserId } })
-                        .then(user => {
-                            result.push({
-                                requestId: reqData.id,
-                                createdAt: reqData.createdAt,
-                                message: reqData.message,
-                                status: reqData.status,
-                                requestUserData: {
-                                    username: user.username,
-                                    surname: user.surname,
-                                    avatar: user.avatar
-                                }
-                            });
-                        })
-                        .then(() => {
-                            res.status(200).send(result);
-                            return;
-                        })
-                        .catch(err => {
-                            const error = [{
-                                constraints: {
-                                    cannotLoadRequest: "Nie udało się wczytać powiadomień (dane użytkownika)"
-                                }
-                            }];
-                            res.status(409).send(error);
-                            return;
-                        });
-                });
-            })
+        let result = [];
+        const friendRequest = await requestRepository.find({ select: ["id", "requestUserId", "createdAt", "message", "status"], where: { targetUserId: userId } })
+            .then(fr => { return fr })
             .catch(err => {
                 const error = [{
                     constraints: {
@@ -349,9 +318,121 @@ class UserController {
                     }
                 }];
                 res.status(409).send(error);
-                return;
+                return Promise.reject(error);
             });
+
+        friendRequest.forEach(async reqData => {
+            const userRepository = getRepository(User);
+            await userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUserId } })
+                .then(user => {
+                    result.push({
+                        requestId: reqData.id,
+                        createdAt: reqData.createdAt,
+                        message: reqData.message,
+                        status: reqData.status,
+                        requestUserData: {
+                            username: user.username,
+                            surname: user.surname,
+                            avatar: user.avatar
+                        }
+                    });
+                })
+                .catch(err => {
+                    const error = [{
+                        constraints: {
+                            cannotLoadRequest: "Nie udało się wczytać powiadomień (dane użytkownika)"
+                        }
+                    }];
+                    res.status(409).send(error);
+                    return;
+                });
+        });
+        console.log(result);
     };
+
+    static friendsRequestDecision = async (req: Request, res: Response) => {
+        const { reqID, decision } = req.body;
+        const requestRepository = getRepository(FriendsRequest);
+        const userRepository = getRepository(User);
+
+
+        const requestData: FriendsRequest = await requestRepository
+            .findOneOrFail({ where: { id: reqID } })
+            .then(reqData => {
+                return reqData;
+            })
+            .catch(err => {
+                const error = [{
+                    constraints: {
+                        cannotLoadRequest: "Nie znaleziono zaproszenia."
+                    }
+                }];
+                res.status(404).send(error);
+                return Promise.reject(error);
+            });
+
+        requestData.status = false;
+
+        await requestRepository.save(requestData);
+
+        if (decision === 'ACCEPT') {
+            let requestUser: User;
+
+            try {
+                requestUser = await userRepository.findOneOrFail(requestData.requestUserId);
+            } catch (err) {
+                const error = [{
+                    constraints: {
+                        canotFindUser: "Nie znaleziono użytkownika."
+                    }
+                }];
+                res.status(404).send(error);
+                return;
+            }
+
+            let targetUser: User;
+            try {
+                targetUser = await userRepository.findOneOrFail(res.locals.jwtPayload.id);
+            } catch (err) {
+                const error = [{
+                    constraints: {
+                        canotFindUser: "Nie znaleziono użytkownika."
+                    }
+                }];
+                res.status(404).send(error);
+                return;
+            }
+
+            let currentFriends = requestUser.friends;
+            try {
+                currentFriends.push(targetUser);
+                requestUser.friends = currentFriends;
+                console.log(currentFriends);
+            } catch (err) {
+                const error = [{
+                    constraints: {
+                        cannotAddFriend: "Coś poszło nie tak. " + err
+                    }
+                }];
+                res.status(409).send(error);
+                return;
+            }
+
+            await userRepository.save(requestUser);
+        }
+
+
+        /*
+    res.status(408).send([{
+        constraints: {
+            timeOut: "Upłynął czas żądania."
+        }
+    }]);
+    */
+
+        res.status(200).json(requestData);
+    };
+
 
     static test = async (req: Request, res: Response) => {
         const { val } = req.body;
