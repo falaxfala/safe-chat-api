@@ -4,7 +4,9 @@ import {
     PrimaryGeneratedColumn,
     Unique,
     CreateDateColumn,
-    UpdateDateColumn
+    UpdateDateColumn,
+    OneToOne,
+    ManyToOne
 } from 'typeorm';
 import { User } from './User';
 
@@ -15,11 +17,11 @@ class FriendsRequest {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
-    requestUserId: number;
+    @ManyToOne(type => User, user => user.myRequests)
+    requestUser: User;
 
-    @Column()
-    targetUserId: number;
+    @ManyToOne(type => User, user => user.requestsForMe)
+    targetUser: User;
 
     @Column()
     message: string;

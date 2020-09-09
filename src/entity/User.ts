@@ -14,6 +14,8 @@ import { Length, IsNotEmpty, IsEmail } from "class-validator";
 import * as bcrypt from "bcryptjs";
 import { ExpiredAccessToken } from "./ExpiredAccessToken";
 import { type } from "os";
+import FriendsRequest from "./FriendRequest";
+import { request } from "express";
 
 @Entity()
 @Unique(["email"])
@@ -67,6 +69,12 @@ export class User {
     @ManyToMany(type => User, user => user.friends)
     @JoinTable()
     friends: User[];
+
+    @OneToMany(type => FriendsRequest, request => request.targetUser)
+    requestsForMe: FriendsRequest[];
+
+    @OneToMany(type => FriendsRequest, request => request.requestUser)
+    myRequests: FriendsRequest[];
 
     @AfterLoad()
     async nullChecks() {

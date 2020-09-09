@@ -281,9 +281,26 @@ class UserController {
         const targetId = req.body.id;
         let newRequest: FriendsRequest = new FriendsRequest();
 
+        let requestUser = new User();
+        let targetUser = new User();
+        const userRepository = getRepository(User);
+
+        try {
+            requestUser = await userRepository.findOneOrFail(userId);
+            targetUser = await userRepository.findOneOrFail(targetId);
+        } catch (err) {
+            const error = [{
+                constraints: {
+                    cannotSendRequest: "Nie znaleziono użytkowników"
+                }
+            }];
+            res.status(404).send(error);
+            return;
+        }
+
         newRequest.message = "Testowanie zaproszeń";
-        newRequest.requestUserId = userId;
-        newRequest.targetUserId = targetId;
+        newRequest.requestUser = requestUser;
+        newRequest.targetUser = targetUser;
         newRequest.status = true;
         newRequest.sendRequest = false;
 
@@ -307,47 +324,80 @@ class UserController {
     static getRequests = async (req: Request, res: Response) => {
         const userId: number = res.locals.jwtPayload.id;
 
-        const requestRepository = getRepository(FriendsRequest);
-        let result = [];
-        const friendRequest = await requestRepository.find({ select: ["id", "requestUserId", "createdAt", "message", "status"], where: { targetUserId: userId } })
-            .then(fr => { return fr })
-            .catch(err => {
-                const error = [{
-                    constraints: {
-                        cannotLoadRequest: "Nie udało się wczytać powiadomień (powiadomienie)"
-                    }
-                }];
-                res.status(409).send(error);
-                return Promise.reject(error);
-            });
+        let requests;
 
-        friendRequest.forEach(async reqData => {
-            const userRepository = getRepository(User);
-            await userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUserId } })
-                .then(user => {
-                    result.push({
-                        requestId: reqData.id,
-                        createdAt: reqData.createdAt,
-                        message: reqData.message,
-                        status: reqData.status,
-                        requestUserData: {
-                            username: user.username,
-                            surname: user.surname,
-                            avatar: user.avatar
-                        }
+        try {
+            requests = await getRepository(FriendsRequest)
+                .createQueryBuilder("friendsRequests")
+                .leftJoin("friendsRequests.targetUser", "tUser")
+                .leftJoin("friendsRequests.requestUser", "rUser")
+                .select([
+                    "friendsRequests.id",
+                    "friendsRequests.createdAt",
+                    "friendsRequests.message",
+                    "friendsRequests.status",
+                    "rUser.id",
+                    "rUser.username",
+                    "rUser.surname"])
+                .where("tUser.id = :targetId", { targetId: userId })
+                .getMany();
+        } catch (err) {
+            const error = [{
+                constraints: {
+                    cannotLoadRequest: "Nie udało się wczytać powiadomień (powiadomienie)"
+                }
+            }];
+            res.status(409).send(error);
+            return;
+        }
+
+        res.status(200).send(requests);
+
+
+
+        /*
+                const requestRepository = getRepository(FriendsRequest);
+                let result = [];
+                const friendRequest = await requestRepository.find({ select: ["id", "requestUserId", "createdAt", "message", "status"], where: { targetUserId: userId } })
+                    .then(fr => { return fr })
+                    .catch(err => {
+                        const error = [{
+                            constraints: {
+                                cannotLoadRequest: "Nie udało się wczytać powiadomień (powiadomienie)"
+                            }
+                        }];
+                        res.status(409).send(error);
+                        return Promise.reject(error);
                     });
-                })
-                .catch(err => {
-                    const error = [{
-                        constraints: {
-                            cannotLoadRequest: "Nie udało się wczytać powiadomień (dane użytkownika)"
-                        }
-                    }];
-                    res.status(409).send(error);
-                    return;
+        
+                friendRequest.forEach(async reqData => {
+                    const userRepository = getRepository(User);
+                    await userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUserId } })
+                        .then(user => {
+                            result.push({
+                                requestId: reqData.id,
+                                createdAt: reqData.createdAt,
+                                message: reqData.message,
+                                status: reqData.status,
+                                requestUserData: {
+                                    username: user.username,
+                                    surname: user.surname,
+                                    avatar: user.avatar
+                                }
+                            });
+                        })
+                        .catch(err => {
+                            const error = [{
+                                constraints: {
+                                    cannotLoadRequest: "Nie udało się wczytać powiadomień (dane użytkownika)"
+                                }
+                            }];
+                            res.status(409).send(error);
+                            return;
+                        });
                 });
-        });
-        console.log(result);
+                console.log(result);
+                */
     };
 
     static friendsRequestDecision = async (req: Request, res: Response) => {

@@ -42,45 +42,74 @@ createConnection()
       secret: config.jwtSecret,
       callback: false
     })).on('authenticated', socket => {
-      let notificationsInterval = setInterval(function () {
+      let notificationsInterval = setInterval(async function () {
 
-        const requestsRepository = getRepository(FriendsRequest);
-        requestsRepository.findAndCount({ select: ["id", "requestUserId", "createdAt", "message", "status"], where: { targetUserId: socket.decoded_token.id, status: true, sendRequest: false } })
+        const requests = await getRepository(FriendsRequest)
+          .createQueryBuilder("friendsRequests")
+          .leftJoin("friendsRequests.targetUser", "tUser")
+          .leftJoin("friendsRequests.requestUser", "rUser")
+          .select([
+            "friendsRequests.id",
+            "friendsRequests.createdAt",
+            "friendsRequests.message",
+            "friendsRequests.status",
+            "rUser.id",
+            "rUser.username",
+            "rUser.surname"])
+          .where("tUser.id = :targetId", { targetId: socket.decoded_token.id })
+          .getMany();
+
+
+        /*
+        requestsRepository.findAndCount({
+          select: ["id", "createdAt", "message", "status", "requestUser.id"],
+          where: { targetUser: socket.decoded_token.id, status: true, sendRequest: false },
+          join: {
+            alias: 'request',
+            leftJoin: {
+              requestUserData: "request.requestUser"
+            }
+          }
+        })
           .then(([friendsRequest, count]) => {
-            console.log("sprawdzam, sprawdzam. Spokojnie..." + count+", dla użytkownika "+socket.decoded_token.username);
+            console.log("sprawdzam, sprawdzam. Spokojnie..." + count + ", dla użytkownika " + socket.decoded_token.username);
+
+            console.log(friendsRequest)
             if (count > 0) {
-
-              let result = [];
-              friendsRequest.forEach(reqData => {
-                const userRepository = getRepository(User);
-                userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUserId } })
-                  .then(user => {
-                    result.push({
-                      requestId: reqData.id,
-                      createdAt: reqData.createdAt,
-                      message: reqData.message,
-                      status: reqData.status,
-                      requestUserData: {
-                        username: user.username,
-                        surname: user.surname,
-                        avatar: user.avatar
-                      }
-                    });
-                  })
-                  .then(() => {
-                    socket.emit('newNotification', result);
-                  })
-              });
-
-              friendsRequest.forEach(request => {
-                request.sendRequest = true;
-                requestsRepository.update(request.id, request);
-              });
+              
+                            let result = [];
+                            friendsRequest.forEach(reqData => {
+                              const userRepository = getRepository(User);
+                              userRepository.findOne({ select: ["username", "surname", "avatar"], where: { id: reqData.requestUser.id } })
+                                .then(user => {
+                                  result.push({
+                                    requestId: reqData.id,
+                                    createdAt: reqData.createdAt,
+                                    message: reqData.message,
+                                    status: reqData.status,
+                                    requestUserData: {
+                                      username: user.username,
+                                      surname: user.surname,
+                                      avatar: user.avatar
+                                    }
+                                  });
+                                })
+                                .then(() => {
+                                  socket.emit('newNotification', result);
+                                })
+                            });
+              
+                            friendsRequest.forEach(request => {
+                              request.sendRequest = true;
+                              requestsRepository.update(request.id, request);
+                            });
+                            
             }
           })
           .catch(e => {
             socket.emit('newNotification', { title: 'Wystąpił błąd' + e });
           });
+          */
       }, 3000);
 
       socket.on('disconnect', () => {
