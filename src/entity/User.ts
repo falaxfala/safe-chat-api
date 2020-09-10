@@ -76,13 +76,6 @@ export class User {
     @OneToMany(type => FriendsRequest, request => request.requestUser)
     myRequests: FriendsRequest[];
 
-    @AfterLoad()
-    async nullChecks() {
-        if (!this.friends) {
-            this.friends = [];
-        }
-    }
-
     hashPassword() {
         this.password = bcrypt.hashSync(this.password, 8);
     }
