@@ -44,6 +44,8 @@ router.post('/saveFriendsRequest', [checkJwt], UserController.saveFriendsRequest
 
 router.get('/notifications', [checkJwt], UserController.getRequests);
 
-router.post('/friendsRequestDecision', [checkJwt],UserController.friendsRequestDecision)
+router.post('/friendsRequestDecision', [checkJwt], UserController.friendsRequestDecision);
+
+router.get('/checkFriendshipStatus/:id([0-9]+)', [checkJwt], UserController.checkFriendshipStatus);
 
 export default router;

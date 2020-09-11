@@ -6,6 +6,7 @@ import { User } from "../entity/User";
 import config from '../config/config';
 import * as jwt from 'jsonwebtoken';
 import FriendsRequest from "../entity/FriendRequest";
+import { checkJwt } from "../middlewares/checkJwt";
 
 const nodemailer = require('nodemailer');
 
@@ -258,16 +259,24 @@ class UserController {
 
     static search = async (req: Request, res: Response) => {
         const word = req.body.search;
+        const userID = res.locals.jwtPayload.id;
 
         const userRepository = getRepository(User);
         let users;
         try {
             users = await userRepository.createQueryBuilder("user")
                 .select(["user.username", "user.surname", "user.id"])
-                .where("user.username like :word", { word: '%' + word + '%' })
+                .where("user.username like :word AND NOT user.id = :id", { word: '%' + word + '%', id: userID })
                 .orWhere("user.surname like :word", { word: '%' + word + '%' })
                 .getMany();
-        } catch (error) {
+        } catch (err) {
+
+            const error = [{
+                constraints: {
+                    cannotFindUser: "Nie znaleziono użytkowników"
+                }
+            }];
+
             res.status(404).send(error);
             return;
         }
@@ -351,6 +360,14 @@ class UserController {
             return;
         }
 
+        requests.forEach(async elem => {
+            if (elem.sendRequest === false) {
+                elem.sendRequest = true;
+                await getRepository(FriendsRequest)
+                    .update(elem.id, elem);
+            }
+        });
+
         res.status(200).send(requests);
     };
 
@@ -409,7 +426,9 @@ class UserController {
         }
 
 
-        
+        await requestRepository.update(reqID, { status: false });
+
+
         res.status(200).send();
     };
 
@@ -425,6 +444,65 @@ class UserController {
         }
         return friends;
     };
+
+    static checkFriendshipStatus = async (req: Request, res: Response) => {
+        const userId = res.locals.jwtPayload.id;
+        const checkUserId:number = +req.params.id;
+
+        const reqRepository = getRepository(FriendsRequest);
+
+        let myRequestsCount = 0;
+        let friendshipStatus = '';
+        //Check if current User send any requests
+        try {
+            myRequestsCount = await reqRepository
+                .createQueryBuilder("req")
+                .where("status = 1 AND (requestUserId = :currUser AND targetUserId = :checkUser) OR (requestUserId = :checkUser AND targetUserId = :currUser)", { currUser: userId, checkUser: checkUserId })
+                .getCount();
+            //.query("SELECT COUNT(*) FROM friends_request AS request WHERE request.status = 1 AND (request.requestUserId = " + userId + " AND request.targetUserId = " + checkUserkId + ") OR (request.requestUserId = " + checkUserkId + " AND request.targetUserId = " + userId + ")")
+
+        } catch (err) {
+            const error = [{
+                constraints: {
+                    cannotGetUsersRequests: "Nie można pobrać danych użytkownika 1 " + err
+                }
+            }];
+            res.status(409).send(error);
+            return;
+        }
+
+        const friendsAlready = await UserController.loadFriendsObject(userId)
+            .then(f => {
+                var result = false;
+                f.forEach(elem => {
+                    if (elem.id === checkUserId) {
+                        result = true;
+                        console.log(typeof(checkUserId))
+                    }
+                });
+                return result;
+            })
+            .catch(err => {
+                const error = [{
+                    constraints: {
+                        cannotGetUsersRequests: "Nie można pobrać danych użytkownika 2 " + err
+                    }
+                }];
+                res.status(409).send(error);
+            })
+
+        friendshipStatus = 'NOT_A_FRIENDS';
+
+        if (myRequestsCount === 1) {
+            friendshipStatus = 'REQUEST_SENDED';
+        }
+
+        if (friendsAlready) {
+            friendshipStatus = 'ALREADY_FRIENDS';
+        }
+
+        res.status(200).json({ friendshipStatus });
+    }
 
     static test = async (req: Request, res: Response) => {
         const { val } = req.body;
