@@ -1,10 +1,11 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import auth from "./auth";
 import user from "./user";
-import sockets from './sockets';
+import chat from './chat';
 
 const routes = Router();
 
 routes.use("/auth", auth);
 routes.use("/user", user);
+routes.use('/chat', chat);
 export default routes;

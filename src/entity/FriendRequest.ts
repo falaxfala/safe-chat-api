@@ -8,7 +8,7 @@ import {
     OneToOne,
     ManyToOne
 } from 'typeorm';
-import { User } from './User';
+import User from './User';
 
 @Entity()
 @Unique(['id'])
@@ -28,6 +28,9 @@ class FriendsRequest {
 
     @Column()
     status: boolean;
+
+    @Column()
+    seen: boolean;
 
     @Column()
     sendRequest: boolean;

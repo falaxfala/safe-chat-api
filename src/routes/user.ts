@@ -2,7 +2,7 @@ import { Router } from "express";
 import UserController from "../controller/UserController";
 import { checkJwt } from "../middlewares/checkJwt";
 import { checkRole } from "../middlewares/checkRole";
-import { User } from "../entity/User";
+import User from "../entity/User";
 
 const router = Router();
 
@@ -48,4 +48,7 @@ router.post('/friendsRequestDecision', [checkJwt], UserController.friendsRequest
 
 router.get('/checkFriendshipStatus/:id([0-9]+)', [checkJwt], UserController.checkFriendshipStatus);
 
+router.post('/markNotificationsSeen', [checkJwt], UserController.markNotificationsSeen);
+
+router.get('/avatar/:id([0-9]+)', [checkJwt], UserController.getUserAvatar);
 export default router;

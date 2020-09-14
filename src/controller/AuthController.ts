@@ -3,9 +3,9 @@ import * as jwt from "jsonwebtoken";
 import { getRepository } from "typeorm";
 import { validate } from "class-validator";
 
-import { User } from "../entity/User";
+import User from "../entity/User";
 import config from "../config/config";
-import { ExpiredAccessToken } from "../entity/ExpiredAccessToken";
+import ExpiredAccessToken from "../entity/ExpiredAccessToken";
 
 class AuthController {
   static login = async (req: Request, res: Response) => {
@@ -21,7 +21,7 @@ class AuthController {
     try {
       user = await userRepository.findOneOrFail({ where: { email } });
     } catch (e) {
-      const error = [{
+      const error = [{ 
         constraints: {
           isLoginCorrect: "Nie znaleziono użytkownika z podanym adresem E-mail"
         }
@@ -43,7 +43,7 @@ class AuthController {
 
 
     const accessToken = jwt.sign(
-      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role },
+      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role, avatarUpdateAt: user.avatarUpdateAt },
       config.jwtSecret,
       { expiresIn: "2m" }
     );
@@ -123,10 +123,10 @@ class AuthController {
       }];
       res.status(403).send(error);
       return;
-    }
+    } 
 
     const newToken = jwt.sign(
-      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role },
+      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role, avatarUpdateAt: user.avatarUpdateAt },
       config.jwtSecret,
       { expiresIn: "2m" }
     );

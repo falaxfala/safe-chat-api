@@ -1,4 +1,4 @@
-import { User } from './User';
+import User from './User';
 import {
     Entity,
     Column,
@@ -11,7 +11,7 @@ import {
 
 @Entity()
 @Unique(['expiredToken'])
-export class ExpiredAccessToken {
+class ExpiredAccessToken {
 
     @PrimaryGeneratedColumn()
     id: number;
@@ -30,3 +30,5 @@ export class ExpiredAccessToken {
     @ManyToOne(type => User, user => user.expiredTokens)
     user: User;
 }
+
+export default ExpiredAccessToken;

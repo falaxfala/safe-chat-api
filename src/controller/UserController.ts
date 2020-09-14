@@ -2,11 +2,13 @@ import { Request, Response, request } from "express";
 import { getRepository } from "typeorm";
 import { validate } from "class-validator";
 
-import { User } from "../entity/User";
+import User from "../entity/User";
 import config from '../config/config';
 import * as jwt from 'jsonwebtoken';
 import FriendsRequest from "../entity/FriendRequest";
 import { checkJwt } from "../middlewares/checkJwt";
+import * as fs from 'fs';
+import Chat from "../entity/Chat";
 
 const nodemailer = require('nodemailer');
 
@@ -30,10 +32,10 @@ class UserController {
 
         //Get the user from database
         const userRepository = getRepository(User);
-        let user;
+        let user: User;
         try {
             user = await userRepository.findOneOrFail(id, {
-                select: ["id", "username", "surname", "email", "role", "createdAt"] //We dont want to send the password on response
+                select: ["id", "username", "surname", "email", "role", "avatar", "createdAt"] //We dont want to send the password on response
             });
         } catch (e) {
             const error = [{
@@ -44,7 +46,29 @@ class UserController {
             res.status(404).send(error);
             return;
         }
+        user.avatar = Buffer.from(user.avatar, 'base64').toString();
         res.json(user);
+    };
+
+    static getUserAvatar = async (req: Request, res: Response) => {
+        const userID: number = +req.params.id;
+        const userRepository = getRepository(User);
+
+        const avatarQuery = await userRepository.findOneOrFail(userID, { select: ["avatar"] })
+            .then(res => {
+                return Buffer.from(res.avatar, 'base64').toString();
+            })
+            .catch(err => {
+                const error = [{
+                    constraints: {
+                        isAvatarLoaded: "Nie udało się wczytać avatara użytkownika."
+                    }
+                }];
+                res.status(409).send(error);
+                return Promise.reject(error);
+            });
+
+        res.status(200).send(avatarQuery);
     };
 
     static register = async (req: Request, res: Response) => {
@@ -59,6 +83,10 @@ class UserController {
             user.email = email;
             user.role = 'USER';
             user.publicProfile = true;
+
+            const avatarBitmap = fs.readFileSync('./public/images/profile_default.jpg');
+            user.avatar = Buffer.from(avatarBitmap).toString('base64');
+
         } else {
             const error = [{
                 constraints: {
@@ -94,8 +122,12 @@ class UserController {
             return;
         }
 
-        //Send veryfication email
-        await UserController.sendVeryficationEmail(user);
+        try {
+            //Send veryfication email
+            await UserController.sendVeryficationEmail(user);
+        } catch (err) {
+
+        }
 
         //If all ok, send 201 response
         res.status(201).send("Pomyślnie utworzono użytkownika.");
@@ -226,35 +258,14 @@ class UserController {
     };
 
     static getFriends = async (req: Request, res: Response) => {
-        const id = req.params.id;
+        const userID: number = +req.params.id;
 
-        const userRepository = getRepository(User);
-
-        let friends;
-        try {
-            friends = await userRepository.createQueryBuilder("user")
-                .leftJoinAndSelect("user.friends", "friends")
-                .where("user.id = :id", { id: id })
-                .getMany();
-        } catch (error) {
-            res.status(404).send();
-            return;
-        }
-        let result = [];
-
-        friends.forEach(packet => {
-            packet.friends.forEach(friend => {
-                const { id, username, surname, role } = friend;
-                result.push({
-                    id,
-                    username,
-                    surname,
-                    role
-                });
-            });
+        const friends: User[] = await UserController.loadFriendsObject(userID);
+        friends.forEach(friend => {
+            friend.avatar = Buffer.from(friend.avatar, 'base64').toString();
         });
 
-        res.json(result);
+        res.json(friends);
     };
 
     static search = async (req: Request, res: Response) => {
@@ -266,8 +277,9 @@ class UserController {
         try {
             users = await userRepository.createQueryBuilder("user")
                 .select(["user.username", "user.surname", "user.id"])
-                .where("user.username like :word AND NOT user.id = :id", { word: '%' + word + '%', id: userID })
+                .where("user.username like :word", { word: '%' + word + '%' })
                 .orWhere("user.surname like :word", { word: '%' + word + '%' })
+                .andWhere("NOT user.id = :id", { id: userID })
                 .getMany();
         } catch (err) {
 
@@ -312,6 +324,7 @@ class UserController {
         newRequest.targetUser = targetUser;
         newRequest.status = true;
         newRequest.sendRequest = false;
+        newRequest.seen = false;
 
         const requestRepository = getRepository(FriendsRequest);
         try {
@@ -345,6 +358,7 @@ class UserController {
                     "friendsRequests.createdAt",
                     "friendsRequests.message",
                     "friendsRequests.status",
+                    "friendsRequests.seen",
                     "rUser.id",
                     "rUser.username",
                     "rUser.surname"])
@@ -412,12 +426,29 @@ class UserController {
             const friendsList: User[] = await UserController.loadFriendsObject(requestUser.requestUser.id);
             friendsList.push(currentUser);
             requestUser.requestUser.friends = friendsList;
+
+            const chatRepository = getRepository(Chat);
+            const chat = new Chat();
+            chat.users = [requestUser.requestUser, currentUser];
+
             try {
                 await userRepository.save(requestUser.requestUser);
             } catch (err) {
                 const error = [{
                     constraints: {
                         userAlreadyInFriends: "Użytkownik już znajduje się na Twojej liście znajomych."
+                    }
+                }];
+                res.status(409).send(error);
+                return;
+            }
+
+            try{
+                chatRepository.save(chat);
+            }catch(err){
+                const error = [{
+                    constraints: {
+                        cannotCreateConversation: "Błąd. Nie udało się utworzyć konwersacji."
                     }
                 }];
                 res.status(409).send(error);
@@ -438,7 +469,7 @@ class UserController {
         let friends: User[];
         try {
             friends = await userRepository.
-                query("SELECT friend.username, friend.surname, friend.id, friend.email FROM user_friends_user AS rel INNER JOIN user AS friend ON (rel.userId_1 = friend.id AND rel.userId_2 = " + userID + ") OR (rel.userId_2 = friend.id AND rel.userId_1 = " + userID + ")");
+                query("SELECT friend.username, friend.surname, friend.id, friend.email, friend.avatar FROM user_friends_user AS rel INNER JOIN user AS friend ON (rel.userId_1 = friend.id AND rel.userId_2 = " + userID + ") OR (rel.userId_2 = friend.id AND rel.userId_1 = " + userID + ")");
         } catch (error) {
             return error;
         }
@@ -447,7 +478,7 @@ class UserController {
 
     static checkFriendshipStatus = async (req: Request, res: Response) => {
         const userId = res.locals.jwtPayload.id;
-        const checkUserId:number = +req.params.id;
+        const checkUserId: number = +req.params.id;
 
         const reqRepository = getRepository(FriendsRequest);
 
@@ -477,7 +508,7 @@ class UserController {
                 f.forEach(elem => {
                     if (elem.id === checkUserId) {
                         result = true;
-                        console.log(typeof(checkUserId))
+                        console.log(typeof (checkUserId))
                     }
                 });
                 return result;
@@ -502,6 +533,29 @@ class UserController {
         }
 
         res.status(200).json({ friendshipStatus });
+    };
+
+    static markNotificationsSeen = async (req: Request, res: Response) => {
+        const notIds: number[] = req.body.ids;
+        const requestRepository = getRepository(FriendsRequest);
+        let result;
+        try {
+            await requestRepository.createQueryBuilder()
+                .update(FriendsRequest)
+                .set({ seen: true })
+                .where("id IN (:...ids)", { ids: notIds })
+                .execute();
+        } catch (err) {
+            const error = [{
+                constraints: {
+                    cannotUpdateNotifications: "Nie udało się zaktualizować stanu powiadomień."
+                }
+            }];
+            res.status(409).send(error);
+            return;
+        }
+        console.log(result);
+        res.status(200).send(notIds);
     }
 
     static test = async (req: Request, res: Response) => {

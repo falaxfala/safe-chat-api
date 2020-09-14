@@ -7,19 +7,16 @@ import {
     UpdateDateColumn,
     OneToMany,
     ManyToMany,
-    JoinTable,
-    AfterLoad
+    JoinTable
 } from "typeorm";
 import { Length, IsNotEmpty, IsEmail } from "class-validator";
 import * as bcrypt from "bcryptjs";
-import { ExpiredAccessToken } from "./ExpiredAccessToken";
-import { type } from "os";
+import ExpiredAccessToken from "./ExpiredAccessToken";
 import FriendsRequest from "./FriendRequest";
-import { request } from "express";
 
 @Entity()
 @Unique(["email"])
-export class User {
+class User {
     @PrimaryGeneratedColumn()
     id: number;
 
@@ -52,7 +49,7 @@ export class User {
     @Column()
     publicProfile: boolean;
 
-    @Column({ type: "blob" })
+    @Column({ type: "blob", name: "avatar", nullable: false })
     avatar: string;
 
     @Column()
@@ -96,3 +93,5 @@ export class User {
         this.activationCode = result;
     }
 }
+
+export default User;
