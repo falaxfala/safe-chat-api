@@ -430,6 +430,7 @@ class UserController {
             const chatRepository = getRepository(Chat);
             const chat = new Chat();
             chat.users = [requestUser.requestUser, currentUser];
+            chat.conversationName = '';
 
             try {
                 await userRepository.save(requestUser.requestUser);
@@ -443,9 +444,9 @@ class UserController {
                 return;
             }
 
-            try{
+            try {
                 chatRepository.save(chat);
-            }catch(err){
+            } catch (err) {
                 const error = [{
                     constraints: {
                         cannotCreateConversation: "Błąd. Nie udało się utworzyć konwersacji."

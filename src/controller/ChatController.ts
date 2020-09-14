@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import User from '../entity/User';
 import { getRepository } from 'typeorm';
 import Chat from '../entity/Chat';
 
@@ -10,28 +11,31 @@ class ChatController {
 
 
         const conversations = await getRepository(Chat)
-            .createQueryBuilder("conversation")
-            .leftJoin("conversation.users", "user")
-            .leftJoin("user", "user")
-            .select([
-                "user.username"
-            ])
+            .createQueryBuilder("conversations")
+            .leftJoin("conversations.users", "user", "NOT user.id = :id", { id: id })
+            .select(["conversations", "user.id", "user.username", "user.surname", "user.avatar", "user.role"])
             .take(30)
             .skip(page * 30)
             .getMany()
-            .then(res => Promise.resolve(res))
+            .then(res => {
+                res.forEach(con => {
+                    con.users.forEach(user => {
+                        user.avatar = Buffer.from(user.avatar, 'base64').toString();
+                    });
+                });
+                return res;
+            })
             .catch(err => {
                 const error = [{
                     constraints: {
-                        isConversationsFound: "Wystąpił błąd. Nie można pobrać konwersacji."
+                        isConversationsFound: "Wystąpił błąd. Nie można pobrać konwersacji. " + err
                     }
                 }];
                 res.status(409).send(error);
                 return Promise.reject(error);
             });
 
-            console.log(conversations);
-            res.status(200).json(conversations);
+        res.status(200).json(conversations);
     }
 };
 

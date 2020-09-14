@@ -12,6 +12,9 @@ class Chat {
     @PrimaryGeneratedColumn()
     id: number;
 
+    @Column()
+    conversationName: string;
+
     @ManyToMany(type => User)
     @JoinTable()
     users: User[];

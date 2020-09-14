@@ -51,7 +51,7 @@ class AuthController {
     const refreshToken = jwt.sign(
       { id: user.id },
       config.jwtSecret,
-      { expiresIn: "30m" }
+      { expiresIn: "2h" }
     );
 
     res.status(200).json({ accessToken: accessToken, refreshToken: refreshToken });
