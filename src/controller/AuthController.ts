@@ -43,7 +43,7 @@ class AuthController {
 
 
     const accessToken = jwt.sign(
-      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role, avatarUpdateAt: user.avatarUpdateAt },
+      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role },
       config.jwtSecret,
       { expiresIn: "2m" }
     );
@@ -54,7 +54,7 @@ class AuthController {
       { expiresIn: "30m" }
     );
 
-    res.json({ accessToken: accessToken, refreshToken: refreshToken });
+    res.status(200).json({ accessToken: accessToken, refreshToken: refreshToken });
   };
 
   static token = async (req: Request, res: Response) => {
@@ -126,7 +126,7 @@ class AuthController {
     } 
 
     const newToken = jwt.sign(
-      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role, avatarUpdateAt: user.avatarUpdateAt },
+      { id: user.id, username: user.username, surname: user.surname, email: user.email, role: user.role },
       config.jwtSecret,
       { expiresIn: "2m" }
     );

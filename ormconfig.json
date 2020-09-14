@@ -3,7 +3,7 @@
    "host": "localhost",
    "port": 3306,
    "username": "ByeCry",
-   "password": "MojaMama212",
+   "password": "Mojehaslo1",
    "database": "safe_chat",
    "synchronize": true,
    "logging": false,

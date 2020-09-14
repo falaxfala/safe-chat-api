@@ -13,7 +13,6 @@ import * as socket_io from 'socket.io';
 import * as socketJwt from 'socketio-jwt';
 import config from "./config/config";
 import FriendsRequest from "./entity/FriendRequest";
-import { User } from './entity/User';
 
 let swaggerSpec: Object;
 try {
@@ -23,7 +22,7 @@ try {
 };
 
 
-createConnection()
+const connection = createConnection()
   .then(async connection => {
     const app = express();
 
@@ -92,3 +91,4 @@ createConnection()
   })
   .catch(error => console.log(error));
 
+export default connection;
