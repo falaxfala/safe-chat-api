@@ -74,7 +74,7 @@ class User {
     @OneToMany(type => FriendsRequest, request => request.requestUser)
     myRequests: FriendsRequest[];
 
-    @ManyToMany(type => Chat)
+    @ManyToMany(type => Chat, chat=>chat.users)
     @JoinTable()
     conversations: Chat[];
 

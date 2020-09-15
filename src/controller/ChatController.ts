@@ -10,7 +10,7 @@ class ChatController {
         const userID: number = +req.params.id;
         const page: number = +req.params.page ? +req.params.page : 0;
 
-        const conversations = await getRepository(User)
+        //const conversations = await getRepository(User)
 
         /*
                 const conversations = await getRepository(Chat)
@@ -42,7 +42,7 @@ class ChatController {
                         return Promise.reject(error);
                     });
         */
-        res.status(200).json(conversations);
+        //res.status(200).json(conversations);
     }
 
     static loadMessages = async (req: Request, res: Response) => {

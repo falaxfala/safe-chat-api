@@ -402,41 +402,104 @@ class UserController {
         const requestRepository = getRepository(FriendsRequest);
         const userRepository = getRepository(User);
         const currentUserId = res.locals.jwtPayload.id;
-        let requestUser;
-
-        try {
-            requestUser = await userRepository
-            .createQueryBuilder("user")
-            .leftJoinAndSelect("user.myRequests", "myReq", "myReq.id = :reqId", {reqId: reqID})
-            .getOne();
-        } catch (err) {
-            const error = [{
-                constraints: {
-                    cannotLoadRequest: "Nie udało się wczytać powiadomień (Użytkownik)"
-                }
-            }];
-            res.status(404).send(error);
-            return;
-        }
-
-        let currentUser: User;
-        try {
-            currentUser = await userRepository.findOneOrFail(currentUserId);
-        } catch (err) {
-            const error = [{
-                constraints: {
-                    cannotLoadRequest: "Nie udało się wczytać obecnego użytkownika"
-                }
-            }];
-            res.status(404).send(error);
-            return; 
-        }
 
         if (decision === 'ACCEPT') {
-        console.log(requestUser);
+            //LOAD USER DATA FROM REQUEST ID
+            const requestUser = await requestRepository
+                .createQueryBuilder("request")
+                .leftJoin("request.requestUser", "requestUser", "request.id = :reqID", { reqID: reqID })
+                .select([
+                    "request.id",
+                    "requestUser.id"
+                ])
+                .getOne()
+                .then(res => {
+                    return res.requestUser;
+                })
+                .catch(err => {
+                    const error = [{
+                        constraints: {
+                            cannotLoadRequest: "Nie udało się wczytać powiadomień (Użytkownik)" + err
+                        }
+                    }];
+                    res.status(404).send(error);
+                    return Promise.reject(error);
+                });
+
+            //LOAD CURRENT USER DATA
+            let currentUser: User;
+            try {
+                currentUser = await userRepository.findOneOrFail(currentUserId);
+            } catch (err) {
+                const error = [{
+                    constraints: {
+                        cannotLoadRequest: "Nie udało się wczytać obecnego użytkownika"
+                    }
+                }];
+                res.status(404).send(error);
+                return;
+            }
+
+            //LOAD REQUEST USER CONVERSATIONS ARRAY
+            const requestUserConversations = await userRepository
+                .createQueryBuilder("user")
+                .where("user.id = :id", { id: requestUser.id })
+                .leftJoinAndSelect("user.conversations", "conv")
+                .getOne()
+                .then(res => {
+                    return res.conversations;
+                })
+                .catch(err => {
+                    const error = [{
+                        constraints: {
+                            cannotLoadRequest: "Nie udało się wczytać konwersacji" + err
+                        }
+                    }];
+                    res.status(404).send(error);
+                    return Promise.reject(error);
+                });
+
+            //LOAD CURRENT USER CONVERSATIONS ARRAY
+            const currentUserConversations = await userRepository
+                .createQueryBuilder("user")
+                .where("user.id = :id", { id: currentUser.id })
+                .leftJoinAndSelect("user.conversations", "conv")
+                .getOne()
+                .then(res => {
+                    return res.conversations;
+                })
+                .catch(err => {
+                    const error = [{
+                        constraints: {
+                            cannotLoadRequest: "Nie udało się wczytać konwersacji" + err
+                        }
+                    }];
+                    res.status(404).send(error);
+                    return Promise.reject(error);
+                });
+
+            //LOAD REQUEST USER FRIENDS LIST
+            const requestUserFriends = await UserController.loadFriendsObject(requestUser.id);
+
+            //SAVE ALL DATA
+            const chat = new Chat();
+            chat.users = [currentUser, requestUser];
+
+            currentUserConversations.push(chat);
+            requestUserConversations.push(chat);
+
+            requestUser.conversations = requestUserConversations;
+            currentUser.conversations = currentUserConversations;
+
+            requestUserFriends.push(currentUser);
+            requestUser.friends = requestUserFriends;
+
+            await getRepository(Chat).save(chat);
+            await userRepository.save(requestUser);
+            await userRepository.save(currentUser);
         }
 
-
+        requestRepository.update(reqID, {status: false});
         res.status(200).send();
     };
 

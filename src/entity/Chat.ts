@@ -22,6 +22,9 @@ class Chat {
     @OneToMany(type=>Message, message=>message.chat)
     messages: Message[];
 
+    @ManyToMany(type=>User, user=>user.conversations)
+    users: User[];
+
 }
 
 export default Chat;
