@@ -7,12 +7,13 @@ import {
     UpdateDateColumn,
     OneToMany,
     ManyToMany,
-    JoinTable
+    JoinTable, JoinColumn
 } from "typeorm";
 import { Length, IsNotEmpty, IsEmail } from "class-validator";
 import * as bcrypt from "bcryptjs";
 import ExpiredAccessToken from "./ExpiredAccessToken";
 import FriendsRequest from "./FriendRequest";
+import Chat from "./Chat";
 
 @Entity()
 @Unique(["email"])
@@ -72,6 +73,10 @@ class User {
 
     @OneToMany(type => FriendsRequest, request => request.requestUser)
     myRequests: FriendsRequest[];
+
+    @ManyToMany(type => Chat)
+    @JoinTable()
+    conversations: Chat[];
 
     hashPassword() {
         this.password = bcrypt.hashSync(this.password, 8);

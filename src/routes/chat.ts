@@ -7,4 +7,6 @@ const router = Router();
 
 router.get('/:id([0-9]+)/:page([0-9]+)?', [checkJwt], ChatController.getChatByUserId);
 
+router.get('/messages/:id([0-9]+)', [checkJwt], ChatController.loadMessages);
+
 export default router;

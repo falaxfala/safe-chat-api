@@ -46,6 +46,14 @@ class UserController {
             res.status(404).send(error);
             return;
         }
+
+        if (!Buffer.from(user.avatar).length) {
+            const avatarBitmap = fs.readFileSync('./public/images/profile_default.jpg');
+            user.avatar = Buffer.from(avatarBitmap).toString('base64');
+            res.json(user);
+            return;
+        }
+
         user.avatar = Buffer.from(user.avatar, 'base64').toString();
         res.json(user);
     };
@@ -68,6 +76,13 @@ class UserController {
                 return Promise.reject(error);
             });
 
+        if (!avatarQuery.length) {
+            const avatarBitmap = fs.readFileSync('./public/images/profile_default.jpg');
+            const result = Buffer.from(avatarBitmap).toString('base64');
+            res.status(200).send(result);
+            return;
+        }
+
         res.status(200).send(avatarQuery);
     };
 
@@ -83,9 +98,6 @@ class UserController {
             user.email = email;
             user.role = 'USER';
             user.publicProfile = true;
-
-            const avatarBitmap = fs.readFileSync('./public/images/profile_default.jpg');
-            user.avatar = Buffer.from(avatarBitmap).toString('base64');
 
         } else {
             const error = [{
@@ -393,12 +405,10 @@ class UserController {
         let requestUser;
 
         try {
-            requestUser = await requestRepository
-                .createQueryBuilder("request")
-                .leftJoin("request.requestUser", "requestUser")
-                .select(["requestUser.id", "request.id"])
-                .where("request.id = :reqID", { reqID: reqID })
-                .getOne();
+            requestUser = await userRepository
+            .createQueryBuilder("user")
+            .leftJoinAndSelect("user.myRequests", "myReq", "myReq.id = :reqId", {reqId: reqID})
+            .getOne();
         } catch (err) {
             const error = [{
                 constraints: {
@@ -419,46 +429,12 @@ class UserController {
                 }
             }];
             res.status(404).send(error);
-            return;
+            return; 
         }
 
         if (decision === 'ACCEPT') {
-            const friendsList: User[] = await UserController.loadFriendsObject(requestUser.requestUser.id);
-            friendsList.push(currentUser);
-            requestUser.requestUser.friends = friendsList;
-
-            const chatRepository = getRepository(Chat);
-            const chat = new Chat();
-            chat.users = [requestUser.requestUser, currentUser];
-            chat.conversationName = '';
-
-            try {
-                await userRepository.save(requestUser.requestUser);
-            } catch (err) {
-                const error = [{
-                    constraints: {
-                        userAlreadyInFriends: "Użytkownik już znajduje się na Twojej liście znajomych."
-                    }
-                }];
-                res.status(409).send(error);
-                return;
-            }
-
-            try {
-                chatRepository.save(chat);
-            } catch (err) {
-                const error = [{
-                    constraints: {
-                        cannotCreateConversation: "Błąd. Nie udało się utworzyć konwersacji."
-                    }
-                }];
-                res.status(409).send(error);
-                return;
-            }
+        console.log(requestUser);
         }
-
-
-        await requestRepository.update(reqID, { status: false });
 
 
         res.status(200).send();
@@ -557,11 +533,6 @@ class UserController {
         }
         console.log(result);
         res.status(200).send(notIds);
-    }
-
-    static test = async (req: Request, res: Response) => {
-        const { val } = req.body;
-        res.status(201).send('testuję sobie ' + val);
     };
 };
 
