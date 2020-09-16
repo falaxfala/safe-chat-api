@@ -407,7 +407,8 @@ class UserController {
             //LOAD USER DATA FROM REQUEST ID
             const requestUser = await requestRepository
                 .createQueryBuilder("request")
-                .leftJoin("request.requestUser", "requestUser", "request.id = :reqID", { reqID: reqID })
+                .where("request.id = :reqID", { reqID: reqID })
+                .leftJoin("request.requestUser", "requestUser")
                 .select([
                     "request.id",
                     "requestUser.id"
@@ -425,7 +426,7 @@ class UserController {
                     res.status(404).send(error);
                     return Promise.reject(error);
                 });
-
+            console.log(requestUser)
             //LOAD CURRENT USER DATA
             let currentUser: User;
             try {
@@ -462,7 +463,7 @@ class UserController {
             //LOAD CURRENT USER CONVERSATIONS ARRAY
             const currentUserConversations = await userRepository
                 .createQueryBuilder("user")
-                .where("user.id = :id", { id: currentUser.id })
+                .where("user.id = :id", { id: currentUserId })
                 .leftJoinAndSelect("user.conversations", "conv")
                 .getOne()
                 .then(res => {
@@ -499,7 +500,7 @@ class UserController {
             await userRepository.save(currentUser);
         }
 
-        requestRepository.update(reqID, {status: false});
+        requestRepository.update(reqID, { status: false });
         res.status(200).send();
     };
 

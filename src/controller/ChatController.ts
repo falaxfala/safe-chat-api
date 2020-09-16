@@ -10,39 +10,53 @@ class ChatController {
         const userID: number = +req.params.id;
         const page: number = +req.params.page ? +req.params.page : 0;
 
-        //const conversations = await getRepository(User)
+        const conversations = await getRepository(User)
+            .createQueryBuilder("user")
+            .where("user.id = :id", { id: userID })
+            .leftJoin("user.conversations", "conversations")
+            .limit(30)
+            .offset(page * 30)
+            .leftJoin("conversations.users", "otherUsers")
+            .select([
+                "user.id",
+                "conversations",
+                "otherUsers.id",
+                "otherUsers.avatar",
+                "otherUsers.username",
+                "otherUsers.surname"
+            ])
+            .getOne()
+            .then(res => {
+                const { conversations } = res;
+                conversations.forEach(elem => {
+                    let { users } = elem;
 
-        /*
-                const conversations = await getRepository(Chat)
-                    .createQueryBuilder("conversations")
-                    .innerJoin("conversations.users", "user", "NOT user.id = :id", { id: id })
-                    .select(["conversations", "user.id", "user.username", "user.surname", "user.avatar", "user.role"])
-                    .take(30)
-                    .skip(page * 30)
-                    .getMany()
-                    .then(res => {
-                        res.forEach(con => {
-                            con.users.forEach(user => {
-                                user.avatar = Buffer.from(user.avatar, 'base64').toString();
-                                if (!user.avatar.length) {
-                                    const avatarBitmap = fs.readFileSync('./public/images/profile_default.jpg');
-                                    user.avatar = Buffer.from(avatarBitmap).toString('base64');
-                                }
-                            });
-                        });
-                        return res;
-                    })
-                    .catch(err => {
-                        const error = [{
-                            constraints: {
-                                isConversationsFound: "Wystąpił błąd. Nie można pobrać konwersacji. " + err
-                            }
-                        }];
-                        res.status(409).send(error);
-                        return Promise.reject(error);
+                    if (!elem.conversationName) {
+                        delete elem.conversationName;
+                    }
+
+                    users = users.filter(user => user.id != userID);
+                    users.forEach(user => {
+                        user.avatar = Buffer.from(user.avatar, 'base64').toString();
+                        if (!user.avatar.length) {
+                            const avatarBitmap = fs.readFileSync('./public/images/profile_default.jpg');
+                            user.avatar = Buffer.from(avatarBitmap).toString('base64');
+                        }
                     });
-        */
-        //res.status(200).json(conversations);
+                    elem.users = users;
+                });
+                return conversations;
+            })
+            .catch(err => {
+                const error = [{
+                    constraints: {
+                        isConversationsFound: "Wystąpił błąd. Nie można pobrać konwersacji. " + err
+                    }
+                }];
+                res.status(409).send(error);
+                return Promise.reject(error);
+            });
+        res.status(200).json(conversations);
     }
 
     static loadMessages = async (req: Request, res: Response) => {
@@ -50,14 +64,15 @@ class ChatController {
 
         const messages = await getRepository(Chat)
             .createQueryBuilder("conversation")
-            .leftJoin("conversation.messages", "messages", "messages.id = :id", { id: chatId })
+            .where("conversation.id = :id", {id:chatId})
+            .leftJoin("conversation.messages", "messages")
             .leftJoin("messages.user", "user")
             .select([
                 "conversation.id",
                 "messages.id",
                 "messages.messageText",
                 "user.id"])
-            .getMany()
+            .getOne()
             .then(res => Promise.resolve(res))
             .catch(err => {
                 const error = [{
