@@ -507,7 +507,7 @@ class UserController {
     static loadFriendsObject = async (userID: number) => {
         const userRepository = getRepository(User);
 
-        let friends: User[];
+        let friends: User[]; 
         try {
             friends = await userRepository.
                 query("SELECT friend.username, friend.surname, friend.id, friend.email, friend.avatar FROM user_friends_user AS rel INNER JOIN user AS friend ON (rel.userId_1 = friend.id AND rel.userId_2 = " + userID + ") OR (rel.userId_2 = friend.id AND rel.userId_1 = " + userID + ")");

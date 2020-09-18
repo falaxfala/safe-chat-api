@@ -62,8 +62,7 @@ const connection = createConnection()
             .getManyAndCount();
 
           if (count > 0) {
-            console.log(requests);
-            socket.emit('newNotification', requests[0]);
+            socket.emit('newNotification', requests);
           }
 
           requests.forEach(request => {
